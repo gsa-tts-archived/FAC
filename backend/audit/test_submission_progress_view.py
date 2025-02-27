@@ -10,7 +10,6 @@ from audit.cross_validation import (
 )
 from audit.cross_validation.naming import SECTION_NAMES, find_section_by_name
 from .models import Access, SingleAuditChecklist, SubmissionEvent
-from .models.constants import SubmissionEventType
 from .test_views import _load_json
 
 import datetime
@@ -116,25 +115,25 @@ class SubmissionProgressViewTests(TestCase):
             SubmissionEvent,
             sac=sac,
             user=user,
-            event=SubmissionEventType.GENERAL_INFORMATION_UPDATED,
+            event=SubmissionEvent.EventType.GENERAL_INFORMATION_UPDATED,
         )
         baker.make(
             SubmissionEvent,
             sac=sac,
             user=user,
-            event=SubmissionEventType.AUDIT_INFORMATION_UPDATED,
+            event=SubmissionEvent.EventType.AUDIT_INFORMATION_UPDATED,
         )
         baker.make(
             SubmissionEvent,
             sac=sac,
             user=user,
-            event=SubmissionEventType.AUDIT_REPORT_PDF_UPDATED,
+            event=SubmissionEvent.EventType.AUDIT_REPORT_PDF_UPDATED,
         )
         baker.make(
             SubmissionEvent,
             sac=sac,
             user=user,
-            event=SubmissionEventType.FEDERAL_AWARDS_UPDATED,
+            event=SubmissionEvent.EventType.FEDERAL_AWARDS_UPDATED,
         )
         baker.make(
             SubmissionEvent,

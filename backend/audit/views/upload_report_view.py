@@ -12,10 +12,10 @@ from audit.models import (
     LateChangeError,
     SingleAuditChecklist,
     SingleAuditReportFile,
+    SubmissionEvent,
     Audit,
 )
 from audit.forms import UploadReportForm
-from audit.models.constants import SubmissionEventType
 
 logging.basicConfig(
     format="%(asctime)s %(levelname)-8s %(module)s:%(lineno)d %(message)s"
@@ -145,7 +145,7 @@ class UploadReportView(SingleAuditChecklistAccessRequiredMixin, generic.View):
                     sar_file.full_clean()
                     sar_file.save(
                         event_user=request.user,
-                        event_type=SubmissionEventType.AUDIT_REPORT_PDF_UPDATED,
+                        event_type=SubmissionEvent.EventType.AUDIT_REPORT_PDF_UPDATED,
                     )
 
                     self._save_audit(
@@ -229,5 +229,5 @@ class UploadReportView(SingleAuditChecklistAccessRequiredMixin, generic.View):
             )
             audit.save(
                 event_user=request.user,
-                event_type=SubmissionEventType.AUDIT_REPORT_PDF_UPDATED,
+                event_type=SubmissionEvent.EventType.AUDIT_REPORT_PDF_UPDATED,
             )

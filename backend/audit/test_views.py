@@ -36,7 +36,6 @@ from audit.models import (
     SubmissionEvent,
     generate_sac_report_id,
 )
-from audit.models.constants import SubmissionEventType
 from audit.models.models import STATUS, ExcelFile
 from audit.views import AuditeeCertificationStep2View, MySubmissions
 from dissemination.models import FederalAward, General
@@ -571,7 +570,7 @@ class SubmissionStatusTests(TransactionTestCase):
         self.assertGreaterEqual(event_count, 1)
         self.assertEqual(
             submission_events[event_count - 1].event,
-            SubmissionEventType.LOCKED_FOR_CERTIFICATION,
+            SubmissionEvent.EventType.LOCKED_FOR_CERTIFICATION,
         )
 
     def test_unlock_after_certification(self):
@@ -628,7 +627,7 @@ class SubmissionStatusTests(TransactionTestCase):
         self.assertGreaterEqual(event_count, 1)
         self.assertEqual(
             submission_events[event_count - 1].event,
-            SubmissionEventType.LOCKED_FOR_CERTIFICATION,
+            SubmissionEvent.EventType.LOCKED_FOR_CERTIFICATION,
         )
 
         postdata = {"unlock_after_certification": True}
@@ -646,7 +645,7 @@ class SubmissionStatusTests(TransactionTestCase):
         self.assertGreaterEqual(event_count, 1)
         self.assertEqual(
             submission_events[event_count - 1].event,
-            SubmissionEventType.UNLOCKED_AFTER_CERTIFICATION,
+            SubmissionEvent.EventType.UNLOCKED_AFTER_CERTIFICATION,
         )
 
     def test_auditor_certification(self):
@@ -685,7 +684,7 @@ class SubmissionStatusTests(TransactionTestCase):
         self.assertGreaterEqual(event_count, 1)
         self.assertEqual(
             submission_events[event_count - 1].event,
-            SubmissionEventType.AUDITOR_CERTIFICATION_COMPLETED,
+            SubmissionEvent.EventType.AUDITOR_CERTIFICATION_COMPLETED,
         )
 
     def test_auditee_certification(self):
@@ -725,7 +724,7 @@ class SubmissionStatusTests(TransactionTestCase):
         self.assertGreaterEqual(event_count, 1)
         self.assertEqual(
             submission_events[event_count - 1].event,
-            SubmissionEventType.AUDITEE_CERTIFICATION_COMPLETED,
+            SubmissionEvent.EventType.AUDITEE_CERTIFICATION_COMPLETED,
         )
 
     def test_submission(self):
@@ -784,7 +783,7 @@ class SubmissionStatusTests(TransactionTestCase):
         self.assertGreaterEqual(event_count, 1)
         self.assertEqual(
             submission_events[event_count - 1].event,
-            SubmissionEventType.DISSEMINATED,
+            SubmissionEvent.EventType.DISSEMINATED,
         )
 
     def test_submission_race_condition(self):
@@ -1089,7 +1088,7 @@ class ExcelFileHandlerViewTests(TestCase):
     #     self.assertGreaterEqual(event_count, 1)
     #     self.assertEqual(
     #         submission_events[event_count - 1].event,
-    #         SubmissionEventType.FEDERAL_AWARDS_UPDATED,
+    #         SubmissionEvent.EventType.FEDERAL_AWARDS_UPDATED,
     #     )
 
     @patch("audit.validators._scan_file")
@@ -1169,7 +1168,7 @@ class ExcelFileHandlerViewTests(TestCase):
         self.assertGreaterEqual(event_count, 1)
         self.assertEqual(
             submission_events[event_count - 1].event,
-            SubmissionEventType.CORRECTIVE_ACTION_PLAN_UPDATED,
+            SubmissionEvent.EventType.CORRECTIVE_ACTION_PLAN_UPDATED,
         )
 
     @patch("audit.validators._scan_file")
@@ -1259,7 +1258,7 @@ class ExcelFileHandlerViewTests(TestCase):
         self.assertGreaterEqual(event_count, 1)
         self.assertEqual(
             submission_events[event_count - 1].event,
-            SubmissionEventType.FINDINGS_UNIFORM_GUIDANCE_UPDATED,
+            SubmissionEvent.EventType.FINDINGS_UNIFORM_GUIDANCE_UPDATED,
         )
 
     @patch("audit.validators._scan_file")
@@ -1337,7 +1336,7 @@ class ExcelFileHandlerViewTests(TestCase):
         self.assertGreaterEqual(event_count, 1)
         self.assertEqual(
             submission_events[event_count - 1].event,
-            SubmissionEventType.FEDERAL_AWARDS_AUDIT_FINDINGS_TEXT_UPDATED,
+            SubmissionEvent.EventType.FEDERAL_AWARDS_AUDIT_FINDINGS_TEXT_UPDATED,
         )
 
     @patch("audit.validators._scan_file")
@@ -1445,7 +1444,7 @@ class ExcelFileHandlerViewTests(TestCase):
         self.assertGreaterEqual(event_count, 1)
         self.assertEqual(
             submission_events[event_count - 1].event,
-            SubmissionEventType.SECONDARY_AUDITORS_UPDATED,
+            SubmissionEvent.EventType.SECONDARY_AUDITORS_UPDATED,
         )
 
     @patch("audit.validators._scan_file")
@@ -1713,7 +1712,7 @@ class SingleAuditReportFileHandlerViewTests(TestCase):
         self.assertGreaterEqual(event_count, 1)
         self.assertEqual(
             submission_events[event_count - 1].event,
-            SubmissionEventType.AUDIT_REPORT_PDF_UPDATED,
+            SubmissionEvent.EventType.AUDIT_REPORT_PDF_UPDATED,
         )
 
     @patch("audit.validators._scan_file")
@@ -1785,7 +1784,7 @@ class SingleAuditReportFileHandlerViewTests(TestCase):
         self.assertGreaterEqual(event_count, 1)
         self.assertEqual(
             submission_events[event_count - 1].event,
-            SubmissionEventType.ADDITIONAL_UEIS_UPDATED,
+            SubmissionEvent.EventType.ADDITIONAL_UEIS_UPDATED,
         )
 
     @patch("audit.validators._scan_file")
@@ -1857,7 +1856,7 @@ class SingleAuditReportFileHandlerViewTests(TestCase):
         self.assertGreaterEqual(event_count, 1)
         self.assertEqual(
             submission_events[event_count - 1].event,
-            SubmissionEventType.ADDITIONAL_EINS_UPDATED,
+            SubmissionEvent.EventType.ADDITIONAL_EINS_UPDATED,
         )
 
     @patch("audit.validators._scan_file")
@@ -1930,7 +1929,7 @@ class SingleAuditReportFileHandlerViewTests(TestCase):
         self.assertGreaterEqual(event_count, 1)
         self.assertEqual(
             submission_events[event_count - 1].event,
-            SubmissionEventType.NOTES_TO_SEFA_UPDATED,
+            SubmissionEvent.EventType.NOTES_TO_SEFA_UPDATED,
         )
 
 

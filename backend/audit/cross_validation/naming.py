@@ -1,7 +1,7 @@
 from types import new_class
 from typing import NamedTuple
 
-from audit.models.constants import SubmissionEventType
+from audit.models.submission_event import SubmissionEvent
 from audit.fixtures.excel import FORM_SECTIONS
 
 # We need a canonical source of the different versions of each name.
@@ -42,8 +42,8 @@ SECTION_NAMES = {
         snake_case="additional_eins",
         url_tail="additional-eins",
         workbook_number=8,
-        submission_event=SubmissionEventType.ADDITIONAL_EINS_UPDATED,
-        deletion_event=SubmissionEventType.ADDITIONAL_EINS_DELETED,
+        submission_event=SubmissionEvent.EventType.ADDITIONAL_EINS_UPDATED,
+        deletion_event=SubmissionEvent.EventType.ADDITIONAL_EINS_DELETED,
     ),
     "additional_ueis": SectionBabelFish(
         all_caps="ADDITIONAL_UEIS",
@@ -55,8 +55,8 @@ SECTION_NAMES = {
         snake_case="additional_ueis",
         url_tail="additional-ueis",
         workbook_number=6,
-        submission_event=SubmissionEventType.ADDITIONAL_UEIS_UPDATED,
-        deletion_event=SubmissionEventType.ADDITIONAL_UEIS_DELETED,
+        submission_event=SubmissionEvent.EventType.ADDITIONAL_UEIS_UPDATED,
+        deletion_event=SubmissionEvent.EventType.ADDITIONAL_UEIS_DELETED,
     ),
     "audit_information": SectionBabelFish(
         all_caps="AUDIT_INFORMATION",
@@ -68,7 +68,7 @@ SECTION_NAMES = {
         snake_case="audit_information",
         url_tail="audit-information",
         workbook_number=None,
-        submission_event=SubmissionEventType.AUDIT_INFORMATION_UPDATED,
+        submission_event=SubmissionEvent.EventType.AUDIT_INFORMATION_UPDATED,
         deletion_event=None,
     ),
     "corrective_action_plan": SectionBabelFish(
@@ -81,8 +81,8 @@ SECTION_NAMES = {
         reverse_url_for_file_deletion="report_submission:delete-CAP",
         url_tail="cap",
         workbook_number=5,
-        submission_event=SubmissionEventType.CORRECTIVE_ACTION_PLAN_UPDATED,
-        deletion_event=SubmissionEventType.CORRECTIVE_ACTION_PLAN_DELETED,
+        submission_event=SubmissionEvent.EventType.CORRECTIVE_ACTION_PLAN_UPDATED,
+        deletion_event=SubmissionEvent.EventType.CORRECTIVE_ACTION_PLAN_DELETED,
     ),
     "federal_awards": SectionBabelFish(
         all_caps="FEDERAL_AWARDS",
@@ -94,7 +94,7 @@ SECTION_NAMES = {
         snake_case="federal_awards",
         url_tail="federal-awards",
         workbook_number=1,
-        submission_event=SubmissionEventType.FEDERAL_AWARDS_UPDATED,
+        submission_event=SubmissionEvent.EventType.FEDERAL_AWARDS_UPDATED,
         deletion_event=None,
     ),
     "findings_text": SectionBabelFish(
@@ -107,8 +107,8 @@ SECTION_NAMES = {
         snake_case="findings_text",
         url_tail="audit-findings-text",
         workbook_number=4,
-        submission_event=SubmissionEventType.FEDERAL_AWARDS_AUDIT_FINDINGS_TEXT_UPDATED,
-        deletion_event=SubmissionEventType.FEDERAL_AWARDS_AUDIT_FINDINGS_TEXT_DELETED,
+        submission_event=SubmissionEvent.EventType.FEDERAL_AWARDS_AUDIT_FINDINGS_TEXT_UPDATED,
+        deletion_event=SubmissionEvent.EventType.FEDERAL_AWARDS_AUDIT_FINDINGS_TEXT_DELETED,
     ),
     "findings_uniform_guidance": SectionBabelFish(
         all_caps="FINDINGS_UNIFORM_GUIDANCE",
@@ -120,8 +120,8 @@ SECTION_NAMES = {
         snake_case="findings_uniform_guidance",
         url_tail="audit-findings",
         workbook_number=3,
-        submission_event=SubmissionEventType.FINDINGS_UNIFORM_GUIDANCE_UPDATED,
-        deletion_event=SubmissionEventType.FINDINGS_UNIFORM_GUIDANCE_DELETED,
+        submission_event=SubmissionEvent.EventType.FINDINGS_UNIFORM_GUIDANCE_UPDATED,
+        deletion_event=SubmissionEvent.EventType.FINDINGS_UNIFORM_GUIDANCE_DELETED,
     ),
     "general_information": SectionBabelFish(
         all_caps="GENERAL_INFORMATION",
@@ -133,7 +133,7 @@ SECTION_NAMES = {
         snake_case="general_information",
         url_tail="general-information",
         workbook_number=None,
-        submission_event=SubmissionEventType.GENERAL_INFORMATION_UPDATED,
+        submission_event=SubmissionEvent.EventType.GENERAL_INFORMATION_UPDATED,
         deletion_event=None,
     ),
     "notes_to_sefa": SectionBabelFish(
@@ -146,7 +146,7 @@ SECTION_NAMES = {
         snake_case="notes_to_sefa",
         url_tail="notes-to-sefa",
         workbook_number=2,
-        submission_event=SubmissionEventType.NOTES_TO_SEFA_UPDATED,
+        submission_event=SubmissionEvent.EventType.NOTES_TO_SEFA_UPDATED,
         deletion_event=None,
     ),
     "single_audit_report": SectionBabelFish(
@@ -159,7 +159,7 @@ SECTION_NAMES = {
         snake_case="single_audit_report",
         url_tail="upload-report",
         workbook_number=None,
-        submission_event=SubmissionEventType.AUDIT_REPORT_PDF_UPDATED,
+        submission_event=SubmissionEvent.EventType.AUDIT_REPORT_PDF_UPDATED,
         deletion_event=None,
     ),
     "secondary_auditors": SectionBabelFish(
@@ -172,8 +172,8 @@ SECTION_NAMES = {
         snake_case="secondary_auditors",
         url_tail="secondary-auditors",
         workbook_number=7,
-        submission_event=SubmissionEventType.SECONDARY_AUDITORS_UPDATED,
-        deletion_event=SubmissionEventType.SECONDARY_AUDITORS_DELETED,
+        submission_event=SubmissionEvent.EventType.SECONDARY_AUDITORS_UPDATED,
+        deletion_event=SubmissionEvent.EventType.SECONDARY_AUDITORS_DELETED,
     ),
     "tribal_data_consent": SectionBabelFish(
         all_caps="TRIBAL_DATA_CONSENT",
@@ -185,7 +185,7 @@ SECTION_NAMES = {
         snake_case="tribal_data_consent",
         url_tail=None,
         workbook_number=None,
-        submission_event=SubmissionEventType.TRIBAL_CONSENT_UPDATED,
+        submission_event=SubmissionEvent.EventType.TRIBAL_CONSENT_UPDATED,
         deletion_event=None,
     ),
 }

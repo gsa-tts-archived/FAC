@@ -16,7 +16,6 @@ from audit.cross_validation.naming import NC, SECTION_NAMES as SN
 from audit.cross_validation.submission_progress_check import section_completed_metadata
 
 from audit.models import Access, SingleAuditChecklist, LateChangeError, SubmissionEvent
-from audit.models.constants import SubmissionEventType
 from audit.validators import validate_general_information_json
 
 from audit.utils import Util
@@ -240,7 +239,7 @@ class GeneralInformationFormView(LoginRequiredMixin, View):
 
             sac.save(
                 event_user=request.user,
-                event_type=SubmissionEventType.GENERAL_INFORMATION_UPDATED,
+                event_type=SubmissionEvent.EventType.GENERAL_INFORMATION_UPDATED,
             )
 
             return Util.validate_redirect_url(f"/audit/submission-progress/{report_id}")
@@ -522,42 +521,42 @@ class DeleteFileView(LoginRequiredMixin, View):
                 "section_name": SN[NC.FINDINGS_UNIFORM_GUIDANCE].friendly_title,
                 "field_name": SN[NC.FINDINGS_UNIFORM_GUIDANCE].snake_case,
                 "form_section": FORM_SECTIONS.FINDINGS_UNIFORM_GUIDANCE,
-                "event_type": SubmissionEventType.FINDINGS_UNIFORM_GUIDANCE_DELETED,
+                "event_type": SubmissionEvent.EventType.FINDINGS_UNIFORM_GUIDANCE_DELETED,
             },
             "delete-audit-findings-text": {
                 "view_id": "delete-audit-findings-text",
                 "section_name": SN[NC.FINDINGS_TEXT].friendly_title,
                 "field_name": SN[NC.FINDINGS_TEXT].snake_case,
                 "form_section": FORM_SECTIONS.FINDINGS_TEXT,
-                "event_type": SubmissionEventType.FEDERAL_AWARDS_AUDIT_FINDINGS_TEXT_DELETED,
+                "event_type": SubmissionEvent.EventType.FEDERAL_AWARDS_AUDIT_FINDINGS_TEXT_DELETED,
             },
             "delete-cap": {
                 "view_id": "delete-cap",
                 "section_name": SN[NC.CORRECTIVE_ACTION_PLAN].friendly_title,
                 "field_name": SN[NC.CORRECTIVE_ACTION_PLAN].snake_case,
                 "form_section": FORM_SECTIONS.CORRECTIVE_ACTION_PLAN,
-                "event_type": SubmissionEventType.CORRECTIVE_ACTION_PLAN_DELETED,
+                "event_type": SubmissionEvent.EventType.CORRECTIVE_ACTION_PLAN_DELETED,
             },
             "delete-additional-ueis": {
                 "view_id": "delete-additional-ueis",
                 "section_name": SN[NC.ADDITIONAL_UEIS].friendly_title,
                 "field_name": SN[NC.ADDITIONAL_UEIS].snake_case,
                 "form_section": FORM_SECTIONS.ADDITIONAL_UEIS,
-                "event_type": SubmissionEventType.ADDITIONAL_UEIS_DELETED,
+                "event_type": SubmissionEvent.EventType.ADDITIONAL_UEIS_DELETED,
             },
             "delete-secondary-auditors": {
                 "view_id": "delete-secondary-auditors",
                 "section_name": SN[NC.SECONDARY_AUDITORS].friendly_title,
                 "field_name": SN[NC.SECONDARY_AUDITORS].snake_case,
                 "form_section": FORM_SECTIONS.SECONDARY_AUDITORS,
-                "event_type": SubmissionEventType.SECONDARY_AUDITORS_DELETED,
+                "event_type": SubmissionEvent.EventType.SECONDARY_AUDITORS_DELETED,
             },
             "delete-additional-eins": {
                 "view_id": "delete-additional-eins",
                 "section_name": SN[NC.ADDITIONAL_EINS].friendly_title,
                 "field_name": SN[NC.ADDITIONAL_EINS].snake_case,
                 "form_section": FORM_SECTIONS.ADDITIONAL_EINS,
-                "event_type": SubmissionEventType.ADDITIONAL_EINS_DELETED,
+                "event_type": SubmissionEvent.EventType.ADDITIONAL_EINS_DELETED,
             },
         }
 

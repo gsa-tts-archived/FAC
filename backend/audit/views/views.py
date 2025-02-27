@@ -31,12 +31,12 @@ from audit.models import (
     LateChangeError,
     SingleAuditChecklist,
     SingleAuditReportFile,
+    SubmissionEvent,
     Audit,
 )
 from audit.models.constants import (
     FindingsBitmask,
     FINDINGS_FIELD_TO_BITMASK,
-    SubmissionEventType,
 )
 from audit.models.models import STATUS
 from audit.models.viewflow import sac_transition
@@ -147,14 +147,14 @@ class ExcelFileHandlerView(SingleAuditChecklistAccessRequiredMixin, generic.View
 
     def _event_type(self, form_section):
         return {
-            FORM_SECTIONS.ADDITIONAL_EINS: SubmissionEventType.ADDITIONAL_EINS_UPDATED,
-            FORM_SECTIONS.ADDITIONAL_UEIS: SubmissionEventType.ADDITIONAL_UEIS_UPDATED,
-            FORM_SECTIONS.CORRECTIVE_ACTION_PLAN: SubmissionEventType.CORRECTIVE_ACTION_PLAN_UPDATED,
-            FORM_SECTIONS.FEDERAL_AWARDS: SubmissionEventType.FEDERAL_AWARDS_UPDATED,
-            FORM_SECTIONS.FINDINGS_TEXT: SubmissionEventType.FEDERAL_AWARDS_AUDIT_FINDINGS_TEXT_UPDATED,
-            FORM_SECTIONS.FINDINGS_UNIFORM_GUIDANCE: SubmissionEventType.FINDINGS_UNIFORM_GUIDANCE_UPDATED,
-            FORM_SECTIONS.NOTES_TO_SEFA: SubmissionEventType.NOTES_TO_SEFA_UPDATED,
-            FORM_SECTIONS.SECONDARY_AUDITORS: SubmissionEventType.SECONDARY_AUDITORS_UPDATED,
+            FORM_SECTIONS.ADDITIONAL_EINS: SubmissionEvent.EventType.ADDITIONAL_EINS_UPDATED,
+            FORM_SECTIONS.ADDITIONAL_UEIS: SubmissionEvent.EventType.ADDITIONAL_UEIS_UPDATED,
+            FORM_SECTIONS.CORRECTIVE_ACTION_PLAN: SubmissionEvent.EventType.CORRECTIVE_ACTION_PLAN_UPDATED,
+            FORM_SECTIONS.FEDERAL_AWARDS: SubmissionEvent.EventType.FEDERAL_AWARDS_UPDATED,
+            FORM_SECTIONS.FINDINGS_TEXT: SubmissionEvent.EventType.FEDERAL_AWARDS_AUDIT_FINDINGS_TEXT_UPDATED,
+            FORM_SECTIONS.FINDINGS_UNIFORM_GUIDANCE: SubmissionEvent.EventType.FINDINGS_UNIFORM_GUIDANCE_UPDATED,
+            FORM_SECTIONS.NOTES_TO_SEFA: SubmissionEvent.EventType.NOTES_TO_SEFA_UPDATED,
+            FORM_SECTIONS.SECONDARY_AUDITORS: SubmissionEvent.EventType.SECONDARY_AUDITORS_UPDATED,
         }[form_section]
 
     def _extract_and_validate_data(self, form_section, excel_file, auditee_uei):
@@ -293,7 +293,7 @@ class SingleAuditReportFileHandlerView(
             sar_file.full_clean()
             sar_file.save(
                 event_user=request.user,
-                event_type=SubmissionEventType.AUDIT_REPORT_PDF_UPDATED,
+                event_type=SubmissionEvent.EventType.AUDIT_REPORT_PDF_UPDATED,
             )
 
             return redirect("/")
