@@ -1,4 +1,5 @@
-from audit.models import SingleAuditChecklist, SubmissionEvent
+from audit.models import SingleAuditChecklist
+from audit.models.constants import SubmissionEventType
 from audit.models.models import STATUS
 from curation.curationlib.curation_audit_tracking import CurationTracking
 import datetime
@@ -8,6 +9,7 @@ import viewflow.fsm
 logger = logging.getLogger(__name__)
 
 
+# TODO: Relook at this file.
 def sac_revert_from_submitted(sac):
     """
     Transitions the submission_state for a SingleAuditChecklist back
@@ -23,7 +25,7 @@ def sac_revert_from_submitted(sac):
         with CurationTracking():
             sac.save(
                 event_user=None,
-                event_type=SubmissionEvent.EventType.AUDITEE_CERTIFICATION_COMPLETED,
+                event_type=SubmissionEventType.AUDITEE_CERTIFICATION_COMPLETED,
             )
         return True
     return False
@@ -43,7 +45,7 @@ def sac_revert_from_flagged_for_removal(sac, user):
         with CurationTracking():
             sac.save(
                 event_user=user,
-                event_type=SubmissionEvent.EventType.CANCEL_REMOVAL_FLAG,
+                event_type=SubmissionEventType.CANCEL_REMOVAL_FLAG,
             )
 
 
@@ -60,7 +62,7 @@ def sac_flag_for_removal(sac, user):
         with CurationTracking():
             sac.save(
                 event_user=user,
-                event_type=SubmissionEvent.EventType.FLAGGED_SUBMISSION_FOR_REMOVAL,
+                event_type=SubmissionEventType.FLAGGED_SUBMISSION_FOR_REMOVAL,
             )
 
 
@@ -68,9 +70,9 @@ def sac_transition(request, sac, **kwargs):
     """
     Transitions the submission_state for a SingleAuditChecklist (sac).
     """
-
+    audit = kwargs.get("audit", None)
     user = None
-    flow = SingleAuditChecklistFlow(sac)
+    flow = SingleAuditChecklistFlow(sac, audit)
     target = kwargs.get("transition_to", None)
 
     # optional - only needed when a user is involved.
@@ -85,56 +87,94 @@ def sac_transition(request, sac, **kwargs):
         flow.transition_to_in_progress_again()
         sac.save(
             event_user=user,
-            event_type=SubmissionEvent.EventType.UNLOCKED_AFTER_CERTIFICATION,
+            event_type=SubmissionEventType.UNLOCKED_AFTER_CERTIFICATION,
         )
+        if audit:
+            audit.save(
+                event_user=request.user,
+                event_type=SubmissionEventType.UNLOCKED_AFTER_CERTIFICATION,
+            )
         return True
 
     elif target == STATUS.FLAGGED_FOR_REMOVAL:
         flow.transition_to_flagged_for_removal()
         sac.save(
             event_user=user,
-            event_type=SubmissionEvent.EventType.FLAGGED_SUBMISSION_FOR_REMOVAL,
+            event_type=SubmissionEventType.FLAGGED_SUBMISSION_FOR_REMOVAL,
         )
+        if audit:
+            audit.save(
+                event_user=request.user,
+                event_type=SubmissionEventType.FLAGGED_SUBMISSION_FOR_REMOVAL,
+            )
         return True
 
     elif target == STATUS.READY_FOR_CERTIFICATION:
         flow.transition_to_ready_for_certification()
         sac.save(
             event_user=user,
-            event_type=SubmissionEvent.EventType.LOCKED_FOR_CERTIFICATION,
+            event_type=SubmissionEventType.LOCKED_FOR_CERTIFICATION,
         )
+        if audit:
+            audit.save(
+                event_user=request.user,
+                event_type=SubmissionEventType.LOCKED_FOR_CERTIFICATION,
+            )
         return True
 
     elif target == STATUS.AUDITEE_CERTIFIED:
         flow.transition_to_auditee_certified()
         sac.save(
             event_user=user,
-            event_type=SubmissionEvent.EventType.AUDITEE_CERTIFICATION_COMPLETED,
+            event_type=SubmissionEventType.AUDITEE_CERTIFICATION_COMPLETED,
         )
+        if audit:
+            audit.save(
+                event_user=request.user,
+                event_type=SubmissionEventType.AUDITEE_CERTIFICATION_COMPLETED,
+            )
         return True
 
     elif target == STATUS.AUDITOR_CERTIFIED:
         flow.transition_to_auditor_certified()
         sac.save(
             event_user=user,
-            event_type=SubmissionEvent.EventType.AUDITOR_CERTIFICATION_COMPLETED,
+            event_type=SubmissionEventType.AUDITOR_CERTIFICATION_COMPLETED,
         )
+        if audit:
+            audit.save(
+                event_user=request.user,
+                event_type=SubmissionEventType.AUDITOR_CERTIFICATION_COMPLETED,
+            )
         return True
 
     elif target == STATUS.SUBMITTED:
         flow.transition_to_submitted()
         sac.save(
             event_user=user,
-            event_type=SubmissionEvent.EventType.SUBMITTED,
+            event_type=SubmissionEventType.SUBMITTED,
         )
+        if audit:
+            audit.audit.update(
+                {"fac_accepted_date": datetime.datetime.today().strftime("%Y-%m-%d")}
+            )
+            audit.save(
+                event_user=request.user,
+                event_type=SubmissionEventType.SUBMITTED,
+            )
         return True
 
     elif target == STATUS.DISSEMINATED:
         flow.transition_to_disseminated()
         sac.save(
             event_user=user,
-            event_type=SubmissionEvent.EventType.DISSEMINATED,
+            event_type=SubmissionEventType.DISSEMINATED,
         )
+        if audit:
+            audit.save(
+                event_user=request.user,
+                event_type=SubmissionEventType.DISSEMINATED,
+            )
         return True
 
     return False
@@ -147,12 +187,15 @@ class SingleAuditChecklistFlow(SingleAuditChecklist):
 
     state = viewflow.fsm.State(STATUS, default=STATUS.IN_PROGRESS)
 
-    def __init__(self, sac):
+    def __init__(self, sac, audit=None):
         self.sac = sac
+        self.audit = audit
 
     @state.setter()
     def _set_sac_state(self, value):
         self.sac.submission_status = value
+        if self.audit:
+            self.audit.submission_status = value
 
     @state.getter()
     def _get_sac_state(self):
@@ -206,6 +249,9 @@ class SingleAuditChecklistFlow(SingleAuditChecklist):
         # null out any existing certifications on this submission
         self.sac.auditor_certification = None
         self.sac.auditee_certification = None
+        if self.audit:
+            del self.audit.audit["auditor_certification"]
+            del self.audit.audit["auditee_certification"]
 
         self.sac.transition_name.append(STATUS.IN_PROGRESS)
         self.sac.transition_date.append(datetime.datetime.now(datetime.timezone.utc))

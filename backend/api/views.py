@@ -1,5 +1,6 @@
 import json
 from typing import List
+import logging
 
 from django.http import Http404, HttpResponse, JsonResponse
 from django.urls import reverse
@@ -10,8 +11,14 @@ from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from audit.models.constants import STATUS, AuditType, SubmissionEventType
 from config.settings import AUDIT_SCHEMA_DIR, BASE_DIR
-from audit.models import Access, SingleAuditChecklist, SubmissionEvent
+from audit.models import (
+    Access,
+    SingleAuditChecklist,
+    Audit,
+)
+
 from audit.permissions import SingleAuditChecklistPermission
 from .serializers import (
     AccessAndSubmissionSerializer,
@@ -21,6 +28,8 @@ from .serializers import (
     SingleAuditChecklistSerializer,
     UEISerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 UserModel = get_user_model()
 
@@ -116,33 +125,52 @@ def access_and_submission_check(user, data):
             submission_status="in_progress",
             general_information=all_steps_user_form_data,
             event_user=user,
-            event_type=SubmissionEvent.EventType.CREATED,
+            event_type=SubmissionEventType.CREATED,
+        )
+        print(f"MY GENERAL INFO:\n{all_steps_user_form_data}")
+
+        # TODO: Update Post SOC Launch
+        # TODO: use this for generating report_id when we deprecate "sac" from this workflow.
+        # report_id = generate_sac_report_id(end_date=all_steps_user_form_data["auditee_fiscal_period_end"], source="GSAFAC")
+        audit = Audit.objects.create(
+            report_id=sac.report_id,  # TODO Temporarily use the current id to mirror
+            # report_id=report_id,  # TODO Use this line rather than the above once the "sac" is deprecated.
+            submission_status=STATUS.IN_PROGRESS,
+            audit_type=AuditType.SINGLE_AUDIT,
+            audit={"general_information": all_steps_user_form_data},
+            event_user=user,
+            event_type=SubmissionEventType.CREATED,
         )
 
         # Create all contact Access objects
+        # TODO: Update Post SOC Launch
+        # Remove references to sac for all 5 Access creations.
         Access.objects.create(
             sac=sac,
+            audit=audit,
             role="editor",
             email=str(user.email).lower(),
             user=user,
             event_user=user,
-            event_type=SubmissionEvent.EventType.ACCESS_GRANTED,
+            event_type=SubmissionEventType.ACCESS_GRANTED,
         )
         Access.objects.create(
             sac=sac,
+            audit=audit,
             role="certifying_auditee_contact",
             fullname=serializer.data.get("certifying_auditee_contact_fullname"),
             email=serializer.data.get("certifying_auditee_contact_email").lower(),
             event_user=user,
-            event_type=SubmissionEvent.EventType.ACCESS_GRANTED,
+            event_type=SubmissionEventType.ACCESS_GRANTED,
         )
         Access.objects.create(
             sac=sac,
+            audit=audit,
             role="certifying_auditor_contact",
             fullname=serializer.data.get("certifying_auditor_contact_fullname"),
             email=serializer.data.get("certifying_auditor_contact_email").lower(),
             event_user=user,
-            event_type=SubmissionEvent.EventType.ACCESS_GRANTED,
+            event_type=SubmissionEventType.ACCESS_GRANTED,
         )
 
         # The contacts form should prevent users from submitting an incomplete contacts section
@@ -160,21 +188,23 @@ def access_and_submission_check(user, data):
             if email:
                 Access.objects.create(
                     sac=sac,
+                    audit=audit,
                     role="editor",
                     fullname=name,
                     email=str(email).lower(),
                     event_user=user,
-                    event_type=SubmissionEvent.EventType.ACCESS_GRANTED,
+                    event_type=SubmissionEventType.ACCESS_GRANTED,
                 )
         for email, name in auditor_contacts_info:
             if email:
                 Access.objects.create(
                     sac=sac,
+                    audit=audit,
                     role="editor",
                     fullname=name,
                     email=str(email).lower(),
                     event_user=user,
-                    event_type=SubmissionEvent.EventType.ACCESS_GRANTED,
+                    event_type=SubmissionEventType.ACCESS_GRANTED,
                 )
 
         # Clear entry form data from profile

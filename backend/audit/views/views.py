@@ -31,7 +31,12 @@ from audit.models import (
     LateChangeError,
     SingleAuditChecklist,
     SingleAuditReportFile,
-    SubmissionEvent,
+    Audit,
+)
+from audit.models.constants import (
+    FindingsBitmask,
+    FINDINGS_FIELD_TO_BITMASK,
+    SubmissionEventType,
 )
 from audit.models.models import STATUS
 from audit.models.viewflow import sac_transition
@@ -92,6 +97,8 @@ class MySubmissions(LoginRequiredMixin, generic.View):
         Get all submissions the user is associated with via Access objects.
         """
         accesses = Access.objects.filter(user=user)
+
+        # TODO: Update Post SOC Launch replace this with audit IDs -- commented below.
         sac_ids = [access.sac.id for access in accesses]
         data = SingleAuditChecklist.objects.filter(
             Q(id__in=sac_ids) & ~Q(submission_status=STATUS.FLAGGED_FOR_REMOVAL)
@@ -102,6 +109,18 @@ class MySubmissions(LoginRequiredMixin, generic.View):
             auditee_name=F("general_information__auditee_name"),
             fiscal_year_end_date=F("general_information__auditee_fiscal_period_end"),
         )
+        # TODO: Update Post SOC Launch
+        # The values for audit are invalid.
+        # audit_ids = [access.audit.id for access in accesses]
+        # data = Audit.objects.filter(
+        #     Q(id__in=audit_ids) & ~Q(submission_status=STATUS.FLAGGED_FOR_REMOVAL)
+        # ).values(
+        #     "report_id",
+        #     "submission_status",
+        #     auditee_uei=F("general_information__auditee_uei"),
+        #     auditee_name=F("general_information__auditee_name"),
+        #     fiscal_year_end_date=F("general_information__auditee_fiscal_period_end"),
+        # )
         return data
 
 
@@ -128,14 +147,14 @@ class ExcelFileHandlerView(SingleAuditChecklistAccessRequiredMixin, generic.View
 
     def _event_type(self, form_section):
         return {
-            FORM_SECTIONS.ADDITIONAL_EINS: SubmissionEvent.EventType.ADDITIONAL_EINS_UPDATED,
-            FORM_SECTIONS.ADDITIONAL_UEIS: SubmissionEvent.EventType.ADDITIONAL_UEIS_UPDATED,
-            FORM_SECTIONS.CORRECTIVE_ACTION_PLAN: SubmissionEvent.EventType.CORRECTIVE_ACTION_PLAN_UPDATED,
-            FORM_SECTIONS.FEDERAL_AWARDS: SubmissionEvent.EventType.FEDERAL_AWARDS_UPDATED,
-            FORM_SECTIONS.FINDINGS_TEXT: SubmissionEvent.EventType.FEDERAL_AWARDS_AUDIT_FINDINGS_TEXT_UPDATED,
-            FORM_SECTIONS.FINDINGS_UNIFORM_GUIDANCE: SubmissionEvent.EventType.FINDINGS_UNIFORM_GUIDANCE_UPDATED,
-            FORM_SECTIONS.NOTES_TO_SEFA: SubmissionEvent.EventType.NOTES_TO_SEFA_UPDATED,
-            FORM_SECTIONS.SECONDARY_AUDITORS: SubmissionEvent.EventType.SECONDARY_AUDITORS_UPDATED,
+            FORM_SECTIONS.ADDITIONAL_EINS: SubmissionEventType.ADDITIONAL_EINS_UPDATED,
+            FORM_SECTIONS.ADDITIONAL_UEIS: SubmissionEventType.ADDITIONAL_UEIS_UPDATED,
+            FORM_SECTIONS.CORRECTIVE_ACTION_PLAN: SubmissionEventType.CORRECTIVE_ACTION_PLAN_UPDATED,
+            FORM_SECTIONS.FEDERAL_AWARDS: SubmissionEventType.FEDERAL_AWARDS_UPDATED,
+            FORM_SECTIONS.FINDINGS_TEXT: SubmissionEventType.FEDERAL_AWARDS_AUDIT_FINDINGS_TEXT_UPDATED,
+            FORM_SECTIONS.FINDINGS_UNIFORM_GUIDANCE: SubmissionEventType.FINDINGS_UNIFORM_GUIDANCE_UPDATED,
+            FORM_SECTIONS.NOTES_TO_SEFA: SubmissionEventType.NOTES_TO_SEFA_UPDATED,
+            FORM_SECTIONS.SECONDARY_AUDITORS: SubmissionEventType.SECONDARY_AUDITORS_UPDATED,
         }[form_section]
 
     def _extract_and_validate_data(self, form_section, excel_file, auditee_uei):
@@ -149,11 +168,27 @@ class ExcelFileHandlerView(SingleAuditChecklistAccessRequiredMixin, generic.View
             validator(audit_data)
         return audit_data
 
-    def _save_audit_data(self, sac, form_section, audit_data):
+    def _save_audit_data(self, sac, form_section, audit_data, user=None):
         handler_info = FORM_SECTION_HANDLERS.get(form_section)
         if handler_info is not None:
             setattr(sac, handler_info["field_name"], audit_data)
             sac.save()
+
+            # TODO: Update Post SOC Launch
+            # TODO Audit Rework
+            # remove try/except once we are ready to deprecate SAC.
+            try:
+                audit = Audit.objects.get(report_id=sac.report_id)
+                audit_update = FORM_SECTION_HANDLERS.get(form_section)["audit_object"](
+                    audit_data
+                )
+                audit.audit.update(audit_update)
+                audit.save(
+                    event_user=user,
+                    event_type=self._event_type(form_section),
+                )
+            except Audit.DoesNotExist:
+                pass
 
     @method_decorator(csrf_exempt)
     def dispatch(self, *args, **kwargs):
@@ -204,7 +239,7 @@ class ExcelFileHandlerView(SingleAuditChecklistAccessRequiredMixin, generic.View
                 excel_file.save(
                     event_user=request.user, event_type=self._event_type(form_section)
                 )
-                self._save_audit_data(sac, form_section, audit_data)
+                self._save_audit_data(sac, form_section, audit_data, request.user)
 
                 return redirect("/")
 
@@ -258,7 +293,7 @@ class SingleAuditReportFileHandlerView(
             sar_file.full_clean()
             sar_file.save(
                 event_user=request.user,
-                event_type=SubmissionEvent.EventType.AUDIT_REPORT_PDF_UPDATED,
+                event_type=SubmissionEventType.AUDIT_REPORT_PDF_UPDATED,
             )
 
             return redirect("/")
@@ -329,11 +364,19 @@ class ReadyForCertificationView(SingleAuditChecklistAccessRequiredMixin, generic
 
         try:
             sac = SingleAuditChecklist.objects.get(report_id=report_id)
-
+            # TODO: Update Post SOC Launch
+            # remove try/except once we are ready to deprecate SAC.
+            try:
+                audit = Audit.objects.get(report_id=report_id)
+            except Audit.DoesNotExist:
+                audit = None
             errors = sac.validate_full()
             if not errors:
                 sac_transition(
-                    request, sac, transition_to=STATUS.READY_FOR_CERTIFICATION
+                    request,
+                    sac,
+                    audit=audit,
+                    transition_to=STATUS.READY_FOR_CERTIFICATION,
                 )
                 return redirect(reverse("audit:SubmissionProgress", args=[report_id]))
             else:
@@ -492,7 +535,16 @@ class AuditorCertificationStep2View(CertifyingAuditorRequiredMixin, generic.View
                 auditor_certification.update(form_cleaned)
                 validated = validate_auditor_certification_json(auditor_certification)
                 sac.auditor_certification = validated
-                if sac_transition(request, sac, transition_to=STATUS.AUDITOR_CERTIFIED):
+                # TODO: Update Post SOC Launch
+                # remove try/except once we are ready to deprecate SAC.
+                try:
+                    audit = Audit.objects.get(report_id=report_id)
+                    audit.audit.update({"auditor_certification": validated})
+                except Audit.DoesNotExist:
+                    audit = None
+                if sac_transition(
+                    request, sac, audit=audit, transition_to=STATUS.AUDITOR_CERTIFIED
+                ):
                     logger.info("Auditor certification saved.", auditor_certification)
                 return redirect(reverse("audit:SubmissionProgress", args=[report_id]))
 
@@ -630,7 +682,16 @@ class AuditeeCertificationStep2View(CertifyingAuditeeRequiredMixin, generic.View
                 auditee_certification.update(form_cleaned)
                 validated = validate_auditee_certification_json(auditee_certification)
                 sac.auditee_certification = validated
-                if sac_transition(request, sac, transition_to=STATUS.AUDITEE_CERTIFIED):
+                # TODO: Update Post SOC Launch
+                # remove try/except once we are ready to deprecate SAC.
+                try:
+                    audit = Audit.objects.get(report_id=report_id)
+                    audit.audit.update({"auditee_certification": validated})
+                except Audit.DoesNotExist:
+                    audit = None
+                if sac_transition(
+                    request, sac, audit=audit, transition_to=STATUS.AUDITEE_CERTIFIED
+                ):
                     logger.info("Auditee certification saved.", auditee_certification)
                 return redirect(reverse("audit:SubmissionProgress", args=[report_id]))
 
@@ -698,7 +759,12 @@ class SubmissionView(CertifyingAuditeeRequiredMixin, generic.View):
         report_id = kwargs["report_id"]
         try:
             sac = SingleAuditChecklist.objects.get(report_id=report_id)
-
+            # TODO: Update Post SOC Launch
+            # remove try/except once we are ready to deprecate SAC.
+            try:
+                audit = Audit.objects.get(report_id=report_id)
+            except Audit.DoesNotExist:
+                audit = None
             errors = sac.validate_full()
             if errors:
                 context = {"report_id": report_id, "errors": errors}
@@ -709,16 +775,22 @@ class SubmissionView(CertifyingAuditeeRequiredMixin, generic.View):
                     context,
                 )
 
+            # TODO: Update Post SOC Launch Atomic stuff should be able to go away.
             # Only change this value if things work...
             disseminated = "DID NOT DISSEMINATE"
 
             # BEGIN ATOMIC BLOCK
             with transaction.atomic():
-                sac_transition(request, sac, transition_to=STATUS.SUBMITTED)
+                sac_transition(
+                    request, sac, audit=audit, transition_to=STATUS.SUBMITTED
+                )
                 disseminated = sac.disseminate()
+                _compute_additional_audit_fields(audit, sac)
                 # `disseminated` is None if there were no errors.
                 if disseminated is None:
-                    sac_transition(request, sac, transition_to=STATUS.DISSEMINATED)
+                    sac_transition(
+                        request, sac, audit=audit, transition_to=STATUS.DISSEMINATED
+                    )
             # END ATOMIC BLOCK
 
             # IF THE DISSEMINATION SUCCEEDED
@@ -762,6 +834,143 @@ class SubmissionView(CertifyingAuditeeRequiredMixin, generic.View):
             if General.objects.get(report_id=sac.report_id):
                 return redirect(reverse("audit:MySubmissions"))
             raise
+
+
+# TODO:
+#    1) We'll want to calculate the cog/oversite for the audit same way as sac, for now just use the sac one
+#    2) Move this somewhere else... this file huge
+def _compute_additional_audit_fields(audit, sac):
+    general_information = audit.audit.get("general_information", {})
+    audit_year, fy_end_month, _ = general_information.get(
+        "auditee_fiscal_period_end", "1900-01-01"
+    ).split("-")
+
+    cognizant_agency = sac.cognizant_agency
+    oversight_agency = sac.oversight_agency
+
+    is_public = general_information.get(
+        "user_provided_organization_type", ""
+    ) != "tribal" or audit.audit.get("tribal_data_consent", {}).get(
+        "is_tribal_information_authorized_to_be_public", True
+    )
+    awards_indexes = _index_awards(audit.audit)
+    findings_indexes = _index_findings(audit.audit)
+    general_indexes = _index_general(audit.audit)
+
+    audit.audit.update(
+        {
+            "audit_year": audit_year,
+            "cognizant_agency": cognizant_agency,
+            "oversight_agency": oversight_agency,
+            "fy_end_month": fy_end_month,
+            "is_public": is_public,
+            "search_indexes": {**findings_indexes, **awards_indexes, **general_indexes},
+        }
+    )
+    audit.save()
+
+
+def _index_findings(audit_data):
+    findings = 0
+    compliance_requirements = set()
+    for finding in audit_data.get("findings_uniform_guidance", []):
+        for mask in FINDINGS_FIELD_TO_BITMASK:
+            if finding.get(mask.field, "N") == "Y":
+                findings |= mask.mask
+        if finding.get("finding", {}).get("repeat_prior_reference", "N") == "Y":
+            findings |= FindingsBitmask.REPEAT_FINDING
+
+        compliance_requirement = finding.get("program", {}).get(
+            "compliance_requirement", ""
+        )
+        compliance_requirements.add(compliance_requirement)
+
+    return {
+        "findings_summary": findings,
+        "compliance_requirements": list(compliance_requirements),
+    }
+
+
+def _index_awards(audit_data):
+    """
+    Method for pulling out all the data from awards that we search on, to improve
+    search performance.
+    """
+    program_names = []
+    passthrough_names = set()
+    agency_prefixes = set()
+    agency_extensions = set()
+    has_direct_funding = False
+    has_indirect_funding = False
+    is_major_program = False
+
+    for award in audit_data.get("federal_awards", {}).get("awards", []):
+        program = award.get("program", {})
+        if program.get("program_name", ""):
+            program_names.append(award["program"]["program_name"])
+        if program.get("is_major", "N") == "Y":
+            is_major_program = True
+        agency_prefixes.add(program.get("federal_agency_prefix", ""))
+        agency_extensions.add(program.get("three_digit_extension", ""))
+
+        if award.get("direct_or_indirect_award", {}).get("is_direct", "") == "Y":
+            has_direct_funding = True
+        elif award.get("direct_or_indirect_award", {}).get("is_direct", "") == "N":
+            has_indirect_funding = True
+        passthrough_names.update(
+            [
+                entity.get("passthrough_name", None)
+                for entity in award.get("direct_or_indirect_award", {}).get(
+                    "entities", []
+                )
+            ]
+        )
+
+    return {
+        "program_names": program_names,
+        "has_direct_funding": has_direct_funding,
+        "has_indirect_funding": has_indirect_funding,
+        "is_major_program": is_major_program,
+        "passthrough_names": list(passthrough_names),
+        "agency_extensions": list(agency_extensions),
+        "agency_prefixes": list(agency_prefixes),
+    }
+
+
+def _index_general(audit_data):
+
+    general_information = audit_data.get("general_information", {})
+
+    search_names = set()
+    general_fields = [
+        "auditee_contact_name",
+        "auditee_email",
+        "auditee_name",
+        "auditor_contact_name",
+        "auditor_email",
+        "auditor_firm_name",
+    ]
+    for field in general_fields:
+        search_names.add(general_information.get(field, ""))
+
+    # Also search over certification
+    auditee_certify_name = (
+        audit_data.get("auditee_certification", {})
+        .get("auditee_signature", {})
+        .get("auditee_name", "")
+    )
+    auditor_certify_name = (
+        audit_data.get("auditor_certification", {})
+        .get("auditor_signature", {})
+        .get("auditor_name", "")
+    )
+
+    search_names.add(auditee_certify_name)
+    search_names.add(auditor_certify_name)
+
+    return {
+        "search_names": list(search_names),
+    }
 
 
 # 2023-08-22 DO NOT ADD ANY FURTHER CODE TO THIS FILE; ADD IT IN viewlib AS WITH UploadReportView

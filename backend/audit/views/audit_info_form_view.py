@@ -5,7 +5,8 @@ from django.urls import reverse
 from django.views import generic
 from audit.forms import AuditInfoForm
 from audit.mixins import SingleAuditChecklistAccessRequiredMixin
-from audit.models import SingleAuditChecklist, SubmissionEvent
+from audit.models import SingleAuditChecklist, Audit
+from audit.models.constants import SubmissionEventType
 from audit.validators import validate_audit_information_json
 from config.settings import (
     AGENCY_NAMES,
@@ -98,8 +99,18 @@ class AuditInfoFormView(SingleAuditChecklistAccessRequiredMixin, generic.View):
                 sac.audit_information = validated
                 sac.save(
                     event_user=request.user,
-                    event_type=SubmissionEvent.EventType.AUDIT_INFORMATION_UPDATED,
+                    event_type=SubmissionEventType.AUDIT_INFORMATION_UPDATED,
                 )
+
+                # TODO: Update Post SOC Launch
+                audit = Audit.objects.find_audit_or_none(report_id=report_id)
+                if audit:
+                    audit.audit.update({"audit_information": validated})
+                    audit.save(
+                        event_user=request.user,
+                        event_type=SubmissionEventType.AUDIT_INFORMATION_UPDATED,
+                    )
+
                 return redirect(reverse("audit:SubmissionProgress", args=[report_id]))
             else:
                 for field, errors in form.errors.items():

@@ -6,6 +6,8 @@ from django.test import RequestFactory, TestCase
 from django.urls import reverse
 from django.conf import settings
 from unittest.mock import MagicMock, patch
+
+from audit.models.constants import SubmissionEventType
 from report_submission.views import DeleteFileView
 from model_bakery import baker
 
@@ -707,7 +709,7 @@ class GeneralInformationFormViewTests(TestCase):
         self.assertGreaterEqual(event_count, 1)
         self.assertEqual(
             submission_events[event_count - 1].event,
-            SubmissionEvent.EventType.GENERAL_INFORMATION_UPDATED,
+            SubmissionEventType.GENERAL_INFORMATION_UPDATED,
         )
 
     def test_post_requires_fields(self):

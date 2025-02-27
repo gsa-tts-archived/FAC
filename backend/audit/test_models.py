@@ -13,10 +13,11 @@ from .models import (
     LateChangeError,
     SingleAuditChecklist,
     SingleAuditReportFile,
-    SubmissionEvent,
     User,
     generate_sac_report_id,
 )
+from audit.models import Audit
+from .models.constants import SubmissionEventType
 from .models.models import STATUS
 from .models.viewflow import sac_transition, SingleAuditChecklistFlow
 
@@ -228,14 +229,14 @@ class AccessTests(TestCase):
         baker.make(User, email="a@a.com")
         baker.make(User, email="a@a.com")
 
-        sac = baker.make(SingleAuditChecklist)
+        audit = baker.make(Audit)
 
         access = Access.objects.create(
-            sac=sac,
+            audit=audit,
             role="editor",
             email="a@a.com",
             event_user=creator,
-            event_type=SubmissionEvent.EventType.ACCESS_GRANTED,
+            event_type=SubmissionEventType.ACCESS_GRANTED,
         )
 
         self.assertEqual(access.email, "a@a.com")
