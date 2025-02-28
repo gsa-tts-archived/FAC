@@ -24,6 +24,7 @@ from audit.mixins import (
     CertifyingAuditeeRequiredMixin,
     CertifyingAuditorRequiredMixin,
     SingleAuditChecklistAccessRequiredMixin,
+
 )
 from audit.models import (
     Access,
@@ -33,8 +34,8 @@ from audit.models import (
     SingleAuditReportFile,
     SubmissionEvent, Audit,
 )
-from audit.models.constants import FINDINGS_BITMASK, FINDINGS_FIELD_TO_BITMASK
-from audit.models.models import STATUS
+from audit.models.constants import FINDINGS_BITMASK, FINDINGS_FIELD_TO_BITMASK, STATUS, STATUS_CHOICES
+# from audit.models.models import STATUS
 from audit.models.viewflow import sac_transition
 from audit.intakelib.exceptions import ExcelExtractionError
 from audit.utils import FORM_SECTION_HANDLERS
@@ -60,7 +61,7 @@ logger = logging.getLogger(__name__)
 
 
 def _friendly_status(status):
-    return dict(SingleAuditChecklist.STATUS_CHOICES)[status]
+    return dict(STATUS_CHOICES)[status]
 
 
 class MySubmissions(LoginRequiredMixin, generic.View):
@@ -97,14 +98,14 @@ class MySubmissions(LoginRequiredMixin, generic.View):
 
         # TODO: replace this with audit IDs -- commented below.
         sac_ids = [access.sac.id for access in accesses]
-        data = SingleAuditChecklist.objects.filter(
+        data = Audit.objects.filter(
             Q(id__in=sac_ids) & ~Q(submission_status=STATUS.FLAGGED_FOR_REMOVAL)
         ).values(
             "report_id",
             "submission_status",
-            auditee_uei=F("general_information__auditee_uei"),
-            auditee_name=F("general_information__auditee_name"),
-            fiscal_year_end_date=F("general_information__auditee_fiscal_period_end"),
+            "auditee_uei",
+            auditee_name=F("audit__general_information__auditee_name"),
+            fiscal_year_end_date=F("audit__general_information__auditee_fiscal_period_end")
         )
         # TODO: 2/25 access audit
         # The values for audit are invalid.
@@ -119,7 +120,6 @@ class MySubmissions(LoginRequiredMixin, generic.View):
         #     fiscal_year_end_date=F("general_information__auditee_fiscal_period_end"),
         # )
         return data
-
 
 class EditSubmission(LoginRequiredMixin, generic.View):
     redirect_field_name = "Home"
@@ -211,34 +211,69 @@ class ExcelFileHandlerView(SingleAuditChecklistAccessRequiredMixin, generic.View
         """
         try:
             report_id = kwargs["report_id"]
-
             form_section = kwargs["form_section"]
-
-            sac = SingleAuditChecklist.objects.get(report_id=report_id)
-
             file = request.FILES["FILES"]
-
-            excel_file = self._create_excel_file(file, sac.id, form_section)
-
             auditee_uei = None
-            if (
-                sac.general_information is not None
-                and "auditee_uei" in sac.general_information
-            ):
-                auditee_uei = sac.general_information["auditee_uei"]
-            with set_sac_to_context(sac):
-                audit_data = self._extract_and_validate_data(
-                    form_section, excel_file, auditee_uei
-                )
-                excel_file.save(
-                    event_user=request.user, event_type=self._event_type(form_section)
-                )
-                self._save_audit_data(sac, form_section, audit_data, request.user)
 
-                return redirect("/")
+            # TODO: 2/25 access audit
+            # When we are ready to transition SAC -> Audit:
+            # 1 - Remove this try block.
+            # 2 - Within the "Except" block, uncomment all relevant lines.
+            # 3 - Switch the SingleAuditChecklist.DoesNotExist -> Audit.DoesNotExist in the outer Except block.
+            try:
+                audit = Audit.objects.get(report_id=report_id)
 
+                excel_file = self._create_excel_file(file, sac.id, form_section)
+
+                if (
+                    audit.audit['general_information'] is not None
+                    and "auditee_uei" in audit.audit['general_information']
+                ):
+                    auditee_uei = audit.audit.get('general_information', {}).get("auditee_uei", None)
+                with set_sac_to_context(sac):
+                    audit_data = self._extract_and_validate_data(
+                        form_section, excel_file, auditee_uei
+                    )
+                    excel_file.save(
+                        event_user=request.user, event_type=self._event_type(form_section)
+                    )
+                    self._save_audit_data(sac, form_section, audit_data, request.user)
+
+                    return redirect("/")
+
+            except Audit.DoesNotExist:
+
+                # TODO: 2/25 access audit
+                # uncomment the lines below when we switch SAC -> audit.
+
+                sac = SingleAuditChecklist.objects.get(report_id=report_id)
+                # audit = Audit.objects.get(report_id=report_id)
+
+                excel_file = self._create_excel_file(file, sac.id, form_section)
+
+                if (
+                    sac.general_information is not None
+                    and "auditee_uei" in sac.general_information
+                    # audit.audit['general_information'] is not None
+                    # and "auditee_uei" in audit.audit['general_information']
+                ):
+                    auditee_uei = sac.general_information["auditee_uei"]
+                    # auditee_uei = audit.audit.get('general_information', {}).get("auditee_uei", None)
+                with set_sac_to_context(sac):
+                    audit_data = self._extract_and_validate_data(
+                        form_section, excel_file, auditee_uei
+                    )
+                    excel_file.save(
+                        event_user=request.user, event_type=self._event_type(form_section)
+                    )
+                    self._save_audit_data(sac, form_section, audit_data, request.user)
+
+                    return redirect("/")
+
+        # TODO: 2/25 access audit
+        # Switch this model with "Audit" when we switch SAC -> audit.
         except SingleAuditChecklist.DoesNotExist as err:
-            logger.warning("no SingleAuditChecklist found with report ID %s", report_id)
+            logger.warning("no SAC found with report ID %s", report_id)
             raise PermissionDenied() from err
         except ValidationError as err:
             # The good error, where bad rows/columns are sent back in the request.
